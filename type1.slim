@@ -80,6 +80,7 @@ early() {
 	p1.individuals.tagF = p1.individuals.fitnessScaling*p1.fitnessScaling;
 }
 
+
 1:10000000 late(){
 	
 	if(sim.generation % 10000 == 0) {
@@ -128,25 +129,25 @@ early() {
 				
 				fitness = NULL;
 				NScount = NULL;
-				het=NULL;
+				het_mean_age = NULL;
 				
 				if(count > 0) {
 					fitness = getFitness(inds_age);
 					NScount = sum(inds_age.genomes.countOfMutationsOfType(m1))/inds_age.size();
 					
-					het = c();
+					het_age = c();
 					
 					for(ind in inds_age){
 						het_ind = calcPairHeterozygosity(ind.genome1, ind.genome2);
-						het = c(het, het_ind);
+						het_age = c(het_age, het_ind);
 					}
 					
-					het_mean = mean(het);
+					het_mean_age = mean(het_age);
 				
 				}
 				
 				fitness_vec = c(fitness_vec, fitness);
-				het_vec = c(het_vec, het_mean);
+				het_vec = c(het_vec, het_mean_age);
 				NScount_vec = c(NScount_vec, NScount);
 			}
 			
