@@ -1,0 +1,257 @@
+
+initialize() {
+	initializeSLiMModelType("nonWF");
+	initializeSex("A");
+	defineConstant("K", 5000);
+	defineConstant("avgLitterSize", 0.1);
+	defineConstant("minRepAge", 15);
+	defineConstant("maxRepAge", 50);
+	defineConstant("h", 0.5);
+	defineConstant("hetTracker", 0);
+	
+	defineConstant("L", c(0.05, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//ages 0-9
+		0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//ages 10-19
+		0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//ages 20-29
+		0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,//ages 30-39
+		0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4, 0.5, 0.5, 1.0));//ages 40-50
+		
+	initializeMutationType("m0", 0, "f", 0);
+	initializeMutationType("m1", h, "g", -0.01314833, 0.186);
+	
+	initializeMutationRate(1.5e-8);
+	
+	initializeGenomicElementType("g1", c(m1, m0), c(2.31, 1.0));
+	
+	// dont remove fixed mutations - note that this is default behavior
+	m0.convertToSubstitution = T;
+	m1.convertToSubstitution = F;
+	
+	// set up a human-like exome with 22,000 genes on 22 chromosomes
+	// each of length 1400 bp
+	gene_num=1000;
+	
+	gene_vec=rep(gene_num,22);
+	
+	defineConstant("geneLength", 1400);
+	defineConstant("seqLength", sum(gene_vec)*geneLength);
+	
+	gene_num=sum(gene_vec);
+	
+	for (i in 1:gene_num){
+		initializeGenomicElement(g1, ((i-1)*geneLength)+(i-1), (i*geneLength)+(i-2) );
+	}
+	
+	rates=NULL;
+	
+	for (i in 1:(size(gene_vec)-1)){
+		rates=c(rates, 1e-9, rep(c(1e-3, 0), asInteger(gene_vec[i-1]-1)), 0.5);
+	}
+	rates=c(rates, 1e-9, rep(c(1e-3, 0), asInteger(gene_vec[size(gene_vec)-1]-1)));
+	
+	ends=NULL;
+	for (i in 1:gene_num){
+		ends=c(ends, (i*geneLength)+(i-2), (i*geneLength)+(i-1));
+	}
+	ends=ends[0:(size(ends)-2)];
+	
+	initializeRecombinationRate(rates, ends);
+}
+
+1 early() {
+	sim.addSubpop("p1", K);
+	p1.individuals.age = rdunif(K, min=0, max=50);
+	catn("gen" + "," + "popSize" + "," + "adultPopSize" + "," + "het" + "," + "gen_time" + "," + "juv_fit" + "," + "adult_fit" + "," + "mean_fit" + "," + "inbreeding_load");
+
+}
+
+early() {
+	// life table based individual mortality
+	inds = p1.individuals;
+	ages = inds.age;
+	mortality = L[ages];
+	survival = 1 - mortality;
+	inds.fitnessScaling = survival;
+	
+	
+	// density-dependence, factoring in individual mortality
+	p1.fitnessScaling = K / (p1.individualCount * mean(survival));
+	
+	p1.individuals.tagF = p1.individuals.fitnessScaling*p1.fitnessScaling;
+}
+
+1:10000000 late(){
+	
+	if(sim.generation % 10000 == 0) {
+		
+		num_adults = p1.individuals[p1.individuals.age >= minRepAge & p1.individuals.age <=maxRepAge];
+		
+		p1_sample = sample(p1.individuals, 200, F);
+		
+		het = c();
+		
+		for(ind in p1_sample){
+			het_ind = calcPairHeterozygosity(ind.genome1, ind.genome2);
+			het = c(het, het_ind);
+		}
+		
+		het_mean = mean(het);
+		
+		gen_time = p1.tag;
+		
+		juveniles = p1.individuals[p1.individuals.age==0];
+		juvenile_fitness = getFitness(juveniles);
+		
+		adults = p1.individuals[p1.individuals.age >= minRepAge];
+		adult_fitness = getFitness(adults);
+		
+		population_fitness = getFitness(p1_sample);
+		
+		inbreeding_load = getInbreedingLoad(p1, 100);
+		
+		catn(sim.generation + "," + p1.individuals.size() + "," + num_adults.size() + "," +  het_mean + "," + gen_time + "," + juvenile_fitness + "," + adult_fitness + "," + population_fitness + "," + inbreeding_load);
+		
+		// end simulation when het[this_gen]/het[10,000 gens ago] < 1.001
+		if(het_mean/asFloat(hetTracker)<1.001){
+			count_vec = c();
+			fitness_vec = c();
+			het_vec = c();
+			NScount_vec = c();
+			
+			for(age in 0:49){
+				
+				inds_age = p1.individuals[p1.individuals.age==age];
+				
+				count = inds_age.size();
+				
+				count_vec = c(count_vec, count);
+				
+				fitness = NULL;
+				NScount = NULL;
+				het=NULL;
+				
+				if(count > 0) {
+					fitness = getFitness(inds_age);
+					NScount = sum(inds_age.genomes.countOfMutationsOfType(m1))/inds_age.size();
+					
+					het = c();
+					
+					for(ind in inds_age){
+						het_ind = calcPairHeterozygosity(ind.genome1, ind.genome2);
+						het = c(het, het_ind);
+					}
+					
+					het_mean = mean(het);
+				
+				}
+				
+				fitness_vec = c(fitness_vec, fitness);
+				het_vec = c(het_vec, het_mean);
+				NScount_vec = c(NScount_vec, NScount);
+			}
+			
+			catn(sim.generation + "late");
+			catn(count_vec);
+			catn(fitness_vec);
+			catn(het_vec);
+			catn(NScount_vec);
+			p1.genomes.outputVCF("p1.vcf");
+			sim.simulationFinished();
+		
+		}
+		rm("hetTracker", removeConstants=T);
+		defineConstant("hetTracker", het_mean);
+	}
+}
+
+reproduction() {
+	
+	males = p1.individuals[p1.individuals.sex=='M'];
+	females = p1.individuals[p1.individuals.sex=='F'];
+	
+	//get reproductive age males and females
+	repro_females = females[females.age >= minRepAge & females.age <=maxRepAge];
+	repro_males = males[males.age >= minRepAge & males.age <=maxRepAge];
+	p1.tag = asInteger(round(mean(repro_females.age)));
+	
+	num_repro_events = min(repro_females.size(), repro_males.size());
+	
+	for(i in 1:num_repro_events){
+		
+		mom = sample(repro_females, 1);
+		dad = sample(repro_males, 1);
+		
+		litterSize = rpois(1, avgLitterSize);
+		
+		for (i in seqLen(litterSize)){
+			p1.addCrossed(mom, dad);
+		}
+	}
+	self.active = 0;
+}
+
+function (s) getFitness(o sample)
+{
+	
+	fitness_population = c();
+	
+	for (individual in sample) {
+		allmuts = c(individual.genomes[0].mutationsOfType(m1), 	individual.genomes[1].mutationsOfType(m1));
+		uniquemuts = c(individual.uniqueMutationsOfType(m1)) ;
+		
+		fitness_individual = c();
+		
+		if (size(uniquemuts) > 0){
+			for (u in uniquemuts){
+				places = (allmuts.id == u.id);
+				uu = allmuts[places];
+				if (size(uu) == 2) {
+					fitness = 1 + sum(uu.selectionCoeff)/2;
+				}
+				else if (size(uu) == 1) {
+					fitness = 1 + uu.selectionCoeff * m1.dominanceCoeff;
+				}
+				fitness_individual = c(fitness_individual, fitness);
+			}
+			fitness_individual = product(fitness_individual);
+			fitness_population = c(fitness_population, fitness_individual);
+		} else {
+			fitness_population = c(fitness_population, 1);
+		}
+	}
+	return(asString(mean(fitness_population)));
+}
+
+
+function (s) getInbreedingLoad(o pop, i sampSize)
+{
+	i = sample(pop.individuals, sampSize, F);
+	B_pop = c();
+	for (individual in i) {
+		//get all deleterious mutation types
+		del_muts = c(individual.genomes.mutationsOfType(m1));
+		B_ind = c();
+		if (del_muts.length()>0) {
+			for(m in del_muts){
+				//check if mut is heterozygous
+				if(individual.genomes.mutationCountsInGenomes(m)==1){
+					//protect against case where s < -1 (can happen with gamma DFE)
+					s = max(m.selectionCoeff,-1.0);
+					//difference in fitness between het and hom is s*(h-1) (1+sh -(1+s))
+					B_ind = c(B_ind, s*(m.mutationType.dominanceCoeff-1));
+				}      }
+			// this is summed rather than multiplied, even if fitness is multiplicative
+			B_pop = c(B_pop, sum(B_ind));
+		}
+		else{
+			B_pop = c(B_pop, 0.0);
+		}
+	}
+	return(asString(mean(B_pop)));
+}
+
+
+
+
+
+
+
