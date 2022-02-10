@@ -24,8 +24,8 @@ initialize() {
 	initializeGenomicElementType("g1", c(m1, m0), c(2.31, 1.0));
 	
 	// dont remove fixed mutations - note that this is default behavior
-	m0.convertToSubstitution = F;
-	m1.convertToSubstitution = T;
+	m0.convertToSubstitution = T;
+	m1.convertToSubstitution = F;
 	
 	// set up a human-like exome with 22,000 genes on 22 chromosomes
 	// each of length 1400 bp
