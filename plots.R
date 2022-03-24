@@ -55,39 +55,37 @@ write.table(dat, "type_3_by_age.tsv", sep = "\t", col.names = T, row.names = F, 
 
 dat_counts <- dplyr::select(dat, a, b, replicate, scenario, starts_with("count_")) 
 names(dat_counts)[5:ncol(dat_counts)] <- 1:(ncol(dat_counts) - 4)
-molten_vals <- pivot_longer(dat_counts, cols = 5:ncol(dat_counts), names_to = "age_bin")
+molten_counts_neutral <- pivot_longer(dat_counts, cols = 5:ncol(dat_counts), names_to = "age_bin")
 
-census_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
+census_plot <- ggplot(molten_counts_neutral, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
 census_plot <- census_plot + geom_point(size = 4,  alpha = 1, shape = 1) + theme_bw() 
 census_plot <- census_plot + facet_grid(a~b)
 census_plot <- census_plot + labs(title = NULL, x = "Age", y = "Count") 
 census_plot <- census_plot + theme(text = element_text(size = 14), 
-                                   legend.title = element_blank(),
                                    axis.text.x = element_blank(),
                                    axis.title.x = element_text(size = 16),
                                    axis.title.y = element_text(size = 16))
-ggsave("census_plot.pdf", census_plot, device = "pdf", width = 12, height = 12)
+ggsave("census_neutral.pdf", census_plot, device = "pdf", width = 12, height = 12)
 
 dat_hets <- dplyr::select(dat, a, b, replicate, starts_with("het_")) 
 names(dat_hets)[4:ncol(dat_hets)] <- 1:(ncol(dat_hets) - 3)
-molten_vals <- pivot_longer(dat_hets, cols = 4:ncol(dat_hets), names_to = "age_bin")
+molten_hets_neutral <- pivot_longer(dat_hets, cols = 4:ncol(dat_hets), names_to = "age_bin")
 
-het_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
+het_plot <- ggplot(molten_hets_neutral, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
 het_plot <- het_plot + geom_line(size = 0.5) + theme_bw() 
 het_plot <- het_plot + facet_grid(a~b)
 het_plot <- het_plot + labs(title = NULL, x = "Age", y = "Het") 
 het_plot <- het_plot + theme(text = element_text(size = 14), 
-                             legend.title = element_blank(),
                              axis.text.x = element_blank(),
                              axis.title.x = element_text(size = 16),
                              axis.title.y = element_text(size = 16))
-ggsave("het_plot.pdf", het_plot, device = "pdf", width = 12, height = 12)
+ggsave("het_neutral.pdf", het_plot, device = "pdf", width = 12, height = 12)
 
 
 # avg over reps
 ## function to get the SD using ddply
-colSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=2, FUN=sd, na.rm=na.rm)
-rowSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=1, FUN=sd, na.rm=na.rm)
+colSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=2, FUN=sd, na.rm=T)
+rowSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=1, FUN=sd, na.rm=T)
 
 dat_avgs <- dat[-3]
 dat_counts <- dplyr::select(dat, a, b, scenario, starts_with("count_")) 
@@ -102,52 +100,49 @@ dat_counts_moments <- cbind.data.frame(dat_counts_avg, dat_counts_sd[4:ncol(dat_
 
 m1 <- pivot_longer(dat_counts_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_counts_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_counts_sum_neutral <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_counts_sum_neutral$age_bin <- rep(1:50, 9)
 
-count_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+count_moments_plot <- ggplot(molten_counts_sum_neutral, aes(x = age_bin, y = avg))
 count_moments_plot <- count_moments_plot + geom_line(size = 0.5) + theme_bw() 
 count_moments_plot <- count_moments_plot + geom_point(shape = 19) 
 count_moments_plot <- count_moments_plot + facet_grid(a~b)
 count_moments_plot <- count_moments_plot + labs(title = NULL, x = "Age", y = "Count") 
 count_moments_plot <- count_moments_plot + theme(text = element_text(size = 14), 
-                                                 legend.title = element_blank(),
                                                  axis.text.x = element_blank(),
                                                  axis.title.x = element_text(size = 16),
                                                  axis.title.y = element_text(size = 16))
-count_moments_plot <- count_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("count_moments_plot.pdf", count_moments_plot, device = "pdf", width = 9, height = 9)
+count_moments_plot <- count_moments_plot + geom_errorbar(aes(ymin = avg - 2 * sd, ymax = avg + 2 * sd), width = 0.2, colour = 'red')
+ggsave("count_moments_neutral.pdf", count_moments_plot, device = "pdf", width = 9, height = 9)
 
 
 dat_avgs <- dat[-3]
 dat_hets <- dplyr::select(dat, a, b, scenario, starts_with("het_")) 
 
-dat_hets_avg <- ddply(.data = dat_hets, .variables = "scenario", .fun = colMeans)
+dat_hets_avg <- ddply(.data = dat_hets, .variables = "scenario", .fun = colMeans, na.rm = T)
 colnames(dat_hets_avg) <- c(colnames(dat_hets_avg)[1:3], paste("avg_het_", 1:50, sep = ""))
 
-dat_hets_sd <- ddply(.data = dat_hets, .variables = "scenario", .fun = colSd)
+dat_hets_sd <- ddply(.data = dat_hets, .variables = "scenario", .fun = colSd, na.rm = T)
 colnames(dat_hets_sd) <- c(colnames(dat_hets_sd)[1:3], paste("sd_het_", 1:50, sep = ""))
 
 dat_hets_moments <- cbind.data.frame(dat_hets_avg, dat_hets_sd[4:ncol(dat_hets_sd)])
 
 m1 <- pivot_longer(dat_hets_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_hets_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_hets_sum_neutral <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_hets_sum_neutral$age_bin <- rep(1:50, 9)
 
-het_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+het_moments_plot <- ggplot(molten_hets_sum_neutral, aes(x = age_bin, y = avg))
 het_moments_plot <- het_moments_plot + geom_line(size = 0.5) + theme_bw() 
 het_moments_plot <- het_moments_plot + geom_point(shape = 19) 
 het_moments_plot <- het_moments_plot + facet_grid(a~b)
 het_moments_plot <- het_moments_plot + labs(title = NULL, x = "Age", y = "het") 
 het_moments_plot <- het_moments_plot + theme(text = element_text(size = 14), 
-                                             legend.title = element_blank(),
                                              axis.text.x = element_blank(),
                                              axis.title.x = element_text(size = 16),
                                              axis.title.y = element_text(size = 16))
 het_moments_plot <- het_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("het_moments_plot.pdf", het_moments_plot, device = "pdf", width = 9, height = 9)
-
+ggsave("het_moments_neutral.pdf", het_moments_plot, device = "pdf", width = 9, height = 9)
 
 dat_het <- dplyr::select(dat, a, b, replicate, scenario, starts_with("het_")) 
 dat_het_pop <- cbind.data.frame(dat_het[1:4], rowMeans(dat_het[5:ncol(dat_het)], na.rm = T))
@@ -164,11 +159,10 @@ het_moments_plot <- ggplot(dat_het_pop_moments, aes(x = as.factor(a), y = avg, c
 het_moments_plot <- het_moments_plot + geom_point(size = 2.5) + theme_bw() 
 het_moments_plot <- het_moments_plot + labs(title = NULL, x = "a", y = "het") 
 het_moments_plot <- het_moments_plot + theme(text = element_text(size = 14), 
-                                             legend.title = element_blank(),
                                              axis.title.x = element_text(size = 16),
                                              axis.title.y = element_text(size = 16))
 het_moments_plot <- het_moments_plot + geom_errorbar(aes(ymin = avg - 2 * sd, ymax = avg + 2 * sd, color = as.factor(b)), width = 0.2)
-ggsave("het_moments_pop_plot.pdf", het_moments_plot, device = "pdf", width = 6, height = 6)
+ggsave("het_moments_neutral_pop.pdf", het_moments_plot, device = "pdf", width = 6, height = 6)
 
 
 ###############################
@@ -224,158 +218,153 @@ write.table(dat, "type_3_by_age.tsv", sep = "\t", col.names = T, row.names = F, 
 
 dat_counts <- dplyr::select(dat, a, b, replicate, scenario, starts_with("count_")) 
 names(dat_counts)[5:ncol(dat_counts)] <- 1:(ncol(dat_counts) - 4)
-molten_vals <- pivot_longer(dat_counts, cols = 5:ncol(dat_counts), names_to = "age_bin")
+molten_counts_selection <- pivot_longer(dat_counts, cols = 5:ncol(dat_counts), names_to = "age_bin")
 
-census_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
+census_plot <- ggplot(molten_counts_selection, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
 census_plot <- census_plot + geom_point(size = 4,  alpha = 1, shape = 1) + theme_bw() 
 census_plot <- census_plot + facet_grid(a~b)
 census_plot <- census_plot + labs(title = NULL, x = "Age", y = "Count") 
 census_plot <- census_plot + theme(text = element_text(size = 14), 
-                                          legend.title = element_blank(),
                                           axis.text.x = element_blank(),
                                           axis.title.x = element_text(size = 16),
                                           axis.title.y = element_text(size = 16))
-ggsave("census_plot.pdf", census_plot, device = "pdf", width = 12, height = 12)
+ggsave("census_selection.pdf", census_plot, device = "pdf", width = 12, height = 12)
 
 dat_fits <- dplyr::select(dat, a, b, replicate, starts_with("fit_")) 
 names(dat_fits)[4:ncol(dat_fits)] <- 1:(ncol(dat_fits) - 3)
-molten_vals <- pivot_longer(dat_fits, cols = 4:ncol(dat_fits), names_to = "age_bin")
+molten_fits_selection <- pivot_longer(dat_fits, cols = 4:ncol(dat_fits), names_to = "age_bin")
 
-load_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = 1 - value, color = as.factor(replicate)))
+load_plot <- ggplot(molten_fits_selection, aes(x = as.numeric(age_bin), y = 1 - value, color = as.factor(replicate)))
 load_plot <- load_plot + geom_line(size = 0.5) + theme_bw() 
 load_plot <- load_plot + facet_grid(a~b)
 load_plot <- load_plot + labs(title = NULL, x = "Age", y = "Load") 
 load_plot <- load_plot + theme(text = element_text(size = 14), 
-                                   legend.title = element_blank(),
                                    axis.text.x = element_blank(),
                                    axis.title.x = element_text(size = 16),
                                    axis.title.y = element_text(size = 16))
-ggsave("load_plot.pdf", load_plot, device = "pdf", width = 12, height = 12)
+ggsave("load_selection.pdf", load_plot, device = "pdf", width = 12, height = 12)
 
 dat_hets <- dplyr::select(dat, a, b, replicate, starts_with("het_")) 
 names(dat_hets)[4:ncol(dat_hets)] <- 1:(ncol(dat_hets) - 3)
-molten_vals <- pivot_longer(dat_hets, cols = 4:ncol(dat_hets), names_to = "age_bin")
+molten_het_selection <- pivot_longer(dat_hets, cols = 4:ncol(dat_hets), names_to = "age_bin")
 
-het_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
+het_plot <- ggplot(molten_het_selection, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
 het_plot <- het_plot + geom_line(size = 0.5) + theme_bw() 
 het_plot <- het_plot + facet_grid(a~b)
 het_plot <- het_plot + labs(title = NULL, x = "Age", y = "Het") 
 het_plot <- het_plot + theme(text = element_text(size = 14), 
-                               legend.title = element_blank(),
+                               
                                axis.text.x = element_blank(),
                                axis.title.x = element_text(size = 16),
                                axis.title.y = element_text(size = 16))
-ggsave("het_plot.pdf", het_plot, device = "pdf", width = 12, height = 12)
+ggsave("het_selection.pdf", het_plot, device = "pdf", width = 12, height = 12)
 
 
 dat_ns <- dplyr::select(dat, a, b, replicate, starts_with("NS_")) 
 names(dat_ns)[4:ncol(dat_ns)] <- 1:(ncol(dat_ns) - 3)
-molten_vals <- pivot_longer(dat_ns, cols = 4:ncol(dat_ns), names_to = "age_bin")
+molten_NS_selection <- pivot_longer(dat_ns, cols = 4:ncol(dat_ns), names_to = "age_bin")
 
-ns_plot <- ggplot(molten_vals, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
+ns_plot <- ggplot(molten_NS_selection, aes(x = as.numeric(age_bin), y = value, color = as.factor(replicate)))
 ns_plot <- ns_plot + geom_line(size = 0.5) + theme_bw() 
 ns_plot <- ns_plot + facet_grid(a~b)
 ns_plot <- ns_plot + labs(title = NULL, x = "Age", y = "NS_count") 
 ns_plot <- ns_plot + theme(text = element_text(size = 14), 
-                             legend.title = element_blank(),
                              axis.text.x = element_blank(),
                              axis.title.x = element_text(size = 16),
                              axis.title.y = element_text(size = 16))
-ggsave("ns_plot.pdf", ns_plot, device = "pdf", width = 12, height = 12)
+ggsave("ns_selection.pdf", ns_plot, device = "pdf", width = 12, height = 12)
 
 # avg over reps
 ## function to get the SD using ddply
-colSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=2, FUN=sd, na.rm=na.rm)
-rowSd <- function (x, na.rm=FALSE) apply(X=x, MARGIN=1, FUN=sd, na.rm=na.rm)
+colSd <- function (x) apply(X=x, MARGIN=2, FUN=sd, na.rm=T)
+rowSd <- function (x) apply(X=x, MARGIN=1, FUN=sd, na.rm=T)
 
 dat_avgs <- dat[-3]
 dat_counts <- dplyr::select(dat, a, b, scenario, starts_with("count_")) 
 
-dat_counts_avg <- ddply(.data = dat_counts, .variables = "scenario", .fun = colMeans)
+dat_counts_avg <- ddply(.data = dat_counts, .variables = "scenario", .fun = colMeans, na.rm = T)
 colnames(dat_counts_avg) <- c(colnames(dat_counts_avg)[1:3], paste("avg_count_", 1:50, sep = ""))
 
-dat_counts_sd <- ddply(.data = dat_counts, .variables = "scenario", .fun = colSd)
+dat_counts_sd <- ddply(.data = dat_counts, .variables = "scenario", .fun = colSd, na.rm = T)
 colnames(dat_counts_sd) <- c(colnames(dat_counts_sd)[1:3], paste("sd_count_", 1:50, sep = ""))
 
 dat_counts_moments <- cbind.data.frame(dat_counts_avg, dat_counts_sd[4:ncol(dat_counts_sd)])
 
 m1 <- pivot_longer(dat_counts_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_counts_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_counts_sum_selection <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_counts_sum_selection$age_bin <- rep(1:50, 9)
   
-count_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+count_moments_plot <- ggplot(molten_counts_sum_selection, aes(x = age_bin, y = avg))
 count_moments_plot <- count_moments_plot + geom_line(size = 0.5) + theme_bw() 
 count_moments_plot <- count_moments_plot + geom_point(shape = 19) 
 count_moments_plot <- count_moments_plot + facet_grid(a~b)
 count_moments_plot <- count_moments_plot + labs(title = NULL, x = "Age", y = "Count") 
 count_moments_plot <- count_moments_plot + theme(text = element_text(size = 14), 
-                           legend.title = element_blank(),
                            axis.text.x = element_blank(),
                            axis.title.x = element_text(size = 16),
                            axis.title.y = element_text(size = 16))
 count_moments_plot <- count_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("count_moments_plot.pdf", count_moments_plot, device = "pdf", width = 9, height = 9)
+ggsave("census_moments_selection.pdf", count_moments_plot, device = "pdf", width = 9, height = 9)
 
 
 dat_avgs <- dat[-3]
 dat_loads <- dplyr::select(dat, a, b, scenario, starts_with("fit_")) 
 dat_loads[4:ncol(dat_loads)] <- 1 - dat_loads[4:ncol(dat_loads)]
 
-dat_loads_avg <- ddply(.data = dat_loads, .variables = "scenario", .fun = colMeans)
+dat_loads_avg <- ddply(.data = dat_loads, .variables = "scenario", .fun = colMeans, na.rm = T)
 colnames(dat_loads_avg) <- c(colnames(dat_loads_avg)[1:3], paste("avg_load_", 1:50, sep = ""))
 
-dat_loads_sd <- ddply(.data = dat_loads, .variables = "scenario", .fun = colSd)
+dat_loads_sd <- ddply(.data = dat_loads, .variables = "scenario", .fun = colSd, na.rm = T)
 colnames(dat_loads_sd) <- c(colnames(dat_loads_sd)[1:3], paste("sd_load_", 1:50, sep = ""))
 
 dat_loads_moments <- cbind.data.frame(dat_loads_avg, dat_loads_sd[4:ncol(dat_loads_sd)])
 
 m1 <- pivot_longer(dat_loads_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_loads_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_load_selection <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_load_selection$age_bin <- rep(1:50, 9)
 
-load_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+load_moments_plot <- ggplot(molten_load_selection, aes(x = age_bin, y = avg))
 load_moments_plot <- load_moments_plot + geom_line(size = 0.5) + theme_bw() 
 load_moments_plot <- load_moments_plot + geom_point(shape = 19) 
 load_moments_plot <- load_moments_plot + facet_grid(a~b)
 load_moments_plot <- load_moments_plot + labs(title = NULL, x = "Age", y = "load") 
 load_moments_plot <- load_moments_plot + theme(text = element_text(size = 14), 
-                                                 legend.title = element_blank(),
+                                                 
                                                  axis.text.x = element_blank(),
                                                  axis.title.x = element_text(size = 16),
                                                  axis.title.y = element_text(size = 16))
 load_moments_plot <- load_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("load_moments_plot.pdf", load_moments_plot, device = "pdf", width = 9, height = 9)
+ggsave("load_moments_selection.pdf", load_moments_plot, device = "pdf", width = 9, height = 9)
 
 dat_avgs <- dat[-3]
 dat_hets <- dplyr::select(dat, a, b, scenario, starts_with("het_")) 
 
-dat_hets_avg <- ddply(.data = dat_hets, .variables = "scenario", .fun = colMeans)
+dat_hets_avg <- ddply(.data = dat_hets, .variables = "scenario", .fun = colMeans, na.rm = T)
 colnames(dat_hets_avg) <- c(colnames(dat_hets_avg)[1:3], paste("avg_het_", 1:50, sep = ""))
 
-dat_hets_sd <- ddply(.data = dat_hets, .variables = "scenario", .fun = colSd)
+dat_hets_sd <- ddply(.data = dat_hets, .variables = "scenario", .fun = colSd, na.rm = T)
 colnames(dat_hets_sd) <- c(colnames(dat_hets_sd)[1:3], paste("sd_het_", 1:50, sep = ""))
 
 dat_hets_moments <- cbind.data.frame(dat_hets_avg, dat_hets_sd[4:ncol(dat_hets_sd)])
 
 m1 <- pivot_longer(dat_hets_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_hets_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_hets_sum_selection <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_hets_sum_selection$age_bin <- rep(1:50, 9)
 
-het_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+het_moments_plot <- ggplot(molten_hets_sum_selection, aes(x = age_bin, y = avg))
 het_moments_plot <- het_moments_plot + geom_line(size = 0.5) + theme_bw() 
 het_moments_plot <- het_moments_plot + geom_point(shape = 19) 
 het_moments_plot <- het_moments_plot + facet_grid(a~b)
 het_moments_plot <- het_moments_plot + labs(title = NULL, x = "Age", y = "het") 
 het_moments_plot <- het_moments_plot + theme(text = element_text(size = 14), 
-                                               legend.title = element_blank(),
                                                axis.text.x = element_blank(),
                                                axis.title.x = element_text(size = 16),
                                                axis.title.y = element_text(size = 16))
-het_moments_plot <- het_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("het_moments_plot.pdf", het_moments_plot, device = "pdf", width = 9, height = 9)
+het_moments_plot <- het_moments_plot + geom_errorbar(aes(ymin = avg - 2 * sd, ymax = avg + 2 * sd), width = 0.2, colour = 'red')
+ggsave("het_moments_selection.pdf", het_moments_plot, device = "pdf", width = 9, height = 9)
 
 dat_avgs <- dat[-3]
 dat_nss <- dplyr::select(dat, a, b, scenario, starts_with("NS_")) 
@@ -390,21 +379,20 @@ dat_nss_moments <- cbind.data.frame(dat_nss_avg, dat_nss_sd[4:ncol(dat_nss_sd)])
 
 m1 <- pivot_longer(dat_nss_moments, cols = starts_with("avg"), names_to = "age_bin", values_to = "avg")
 m2 <- pivot_longer(dat_nss_moments, cols = starts_with("sd"), names_to = "age_bin", values_to = "sd")
-molten_moments <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
-molten_moments$age_bin <- rep(1:50, 9)
+molten_moments_ns_selection <- cbind.data.frame(m1[c(1:3, ncol(m1))], m2[ncol(m2)])
+molten_moments_ns_selection$age_bin <- rep(1:50, 9)
 
-ns_moments_plot <- ggplot(molten_moments, aes(x = age_bin, y = avg))
+ns_moments_plot <- ggplot(molten_moments_ns_selection, aes(x = age_bin, y = avg))
 ns_moments_plot <- ns_moments_plot + geom_line(size = 0.5) + theme_bw() 
 ns_moments_plot <- ns_moments_plot + geom_point(shape = 19) 
 ns_moments_plot <- ns_moments_plot + facet_grid(a~b)
 ns_moments_plot <- ns_moments_plot + labs(title = NULL, x = "Age", y = "ns") 
 ns_moments_plot <- ns_moments_plot + theme(text = element_text(size = 14), 
-                                             legend.title = element_blank(),
                                              axis.text.x = element_blank(),
                                              axis.title.x = element_text(size = 16),
                                              axis.title.y = element_text(size = 16))
 ns_moments_plot <- ns_moments_plot + geom_errorbar(aes(ymin = avg -2*sd,ymax = avg +2*sd),width = 0.2,colour = 'red')
-ggsave("ns_moments_plot.pdf", ns_moments_plot, device = "pdf", width = 9, height = 9)
+ggsave("ns_moments_selection.pdf", ns_moments_plot, device = "pdf", width = 9, height = 9)
 
 # averaging over age bins as well
 dat_ns <- dplyr::select(dat, a, b, replicate, scenario, starts_with("NS_")) 
@@ -424,11 +412,11 @@ ns_moments_plot <- ggplot(dat_ns_pop_moments, aes(x = as.factor(a), y = avg_ns, 
 ns_moments_plot <- ns_moments_plot + geom_point(size = 2.5) + theme_bw() 
 ns_moments_plot <- ns_moments_plot + labs(title = NULL, x = "a", y = "NS count") 
 ns_moments_plot <- ns_moments_plot + theme(text = element_text(size = 14), 
-                                           legend.title = element_blank(),
+                                           
                                            axis.title.x = element_text(size = 16),
                                            axis.title.y = element_text(size = 16))
 ns_moments_plot <- ns_moments_plot + geom_errorbar(aes(ymin = avg_ns - sd, ymax = avg_ns + sd, color = as.factor(b)), width = 0.2)
-ggsave("ns_moments_pop_plot.pdf", ns_moments_plot, device = "pdf", width = 6, height = 6)
+ggsave("ns_moments_selection_pop.pdf", ns_moments_plot, device = "pdf", width = 6, height = 6)
 
 dat_het <- dplyr::select(dat, a, b, replicate, scenario, starts_with("het_")) 
 dat_het_pop <- cbind.data.frame(dat_het[1:4], rowMeans(dat_het[5:ncol(dat_het)], na.rm = T))
@@ -445,11 +433,10 @@ het_moments_plot <- ggplot(dat_het_pop_moments, aes(x = as.factor(a), y = avg, c
 het_moments_plot <- het_moments_plot + geom_point(size = 2.5) + theme_bw() 
 het_moments_plot <- het_moments_plot + labs(title = NULL, x = "a", y = "het") 
 het_moments_plot <- het_moments_plot + theme(text = element_text(size = 14), 
-                                           legend.title = element_blank(),
                                            axis.title.x = element_text(size = 16),
                                            axis.title.y = element_text(size = 16))
 het_moments_plot <- het_moments_plot + geom_errorbar(aes(ymin = avg - 2 * sd, ymax = avg + 2 * sd, color = as.factor(b)), width = 0.2)
-ggsave("het_moments_pop_plot.pdf", het_moments_plot, device = "pdf", width = 6, height = 6)
+ggsave("het_moments_selection_pop.pdf", het_moments_plot, device = "pdf", width = 6, height = 6)
 
 dat_fit <- dplyr::select(dat, a, b, replicate, scenario, starts_with("fit_")) 
 dat_fit_pop <- cbind.data.frame(dat_fit[1:4], rowMeans(1 - dat_fit[5:ncol(dat_fit)], na.rm = T))
@@ -466,11 +453,10 @@ fit_moments_plot <- ggplot(dat_fit_pop_moments, aes(x = as.factor(a), y = avg, c
 fit_moments_plot <- fit_moments_plot + geom_point(size = 2.5) + theme_bw() 
 fit_moments_plot <- fit_moments_plot + labs(title = NULL, x = "a", y = "load") 
 fit_moments_plot <- fit_moments_plot + theme(text = element_text(size = 14), 
-                                             legend.title = element_blank(),
                                              axis.title.x = element_text(size = 16),
                                              axis.title.y = element_text(size = 16))
 fit_moments_plot <- fit_moments_plot + geom_errorbar(aes(ymin = avg - 2 * sd, ymax = avg + 2 * sd, color = as.factor(b)), width = 0.2)
-ggsave("load_moments_pop_plot.pdf", fit_moments_plot, device = "pdf", width = 6, height = 6)
+ggsave("load_moments_selection_pop.pdf", fit_moments_plot, device = "pdf", width = 6, height = 6)
 
 
 
@@ -510,7 +496,6 @@ gamma_dfe_plot <- gamma_dfe_plot + scale_shape_manual(values = c(1,2))
 gamma_dfe_plot <- gamma_dfe_plot + facet_grid(a~b)
 gamma_dfe_plot <- gamma_dfe_plot + labs(title = NULL, x = "Alpha", y = "Beta") 
 gamma_dfe_plot <- gamma_dfe_plot + theme(text = element_text(size = 14), 
-                                         legend.title = element_blank(),
                                          axis.title.x = element_text(size = 16),
                                          axis.title.y = element_text(size = 16))
 gamma_dfe_plot <- gamma_dfe_plot + geom_point(x = alpha_sim, y = beta_sim, shape = 8, col = 'red', size = 4)
@@ -524,7 +509,6 @@ gamma_s_plot <- gamma_s_plot + geom_point(shape = 1, size = 4, alpha = 1) + them
 gamma_s_plot <- gamma_s_plot + geom_hline(aes(yintercept = -mean_sim), color = "red", linetype = "dashed", size = 0.5)
 gamma_s_plot <- gamma_s_plot + labs(title = NULL, x = "dominance", y = "mean(|s|)") 
 gamma_s_plot <- gamma_s_plot + theme(text = element_text(size = 14), 
-                                     legend.title = element_blank(),
                                      axis.title.x = element_text(size = 16),
                                      axis.title.y = element_text(size = 16))
 ggsave("mean_s_DFE_scenarios.pdf", gamma_s_plot, device = "pdf", width = 8, height = 8)
@@ -536,7 +520,6 @@ gamma_var_s_plot <- gamma_var_s_plot + geom_point(shape = 1, size = 4,  alpha = 
 gamma_var_s_plot <- gamma_var_s_plot + geom_hline(aes(yintercept = var_sim), color = "red", linetype = "dashed", size = 0.5)
 gamma_var_s_plot <- gamma_var_s_plot + labs(title = NULL, x = "dominance", y = "var(s)") 
 gamma_var_s_plot <- gamma_var_s_plot + theme(text = element_text(size = 14), 
-                                             legend.title = element_blank(),
                                              axis.title.x = element_text(size = 16),
                                              axis.title.y = element_text(size = 16))
 ggsave("var_s_DFE_scenarios.pdf", gamma_var_s_plot, device = "pdf", width = 8, height = 8)
@@ -574,11 +557,55 @@ gamma_dfe_plot <- gamma_dfe_plot + geom_point(size = 4,  alpha = 1, shape = 1) +
 gamma_dfe_plot <- gamma_dfe_plot + facet_wrap(~rec_rate)
 gamma_dfe_plot <- gamma_dfe_plot + labs(title = NULL, x = "Alpha", y = "Beta") 
 gamma_dfe_plot <- gamma_dfe_plot + theme(text = element_text(size = 14), 
-                                         legend.title = element_blank(),
                                          axis.title.x = element_text(size = 16),
                                          axis.title.y = element_text(size = 16))
 gamma_dfe_plot <- gamma_dfe_plot + geom_point(x = alpha_sim, y = beta_sim, shape = 8, col = 'red', size = 4)
 ggsave("gamma_dfe_rec.pdf", gamma_dfe_plot, device = "pdf", width = 8, height = 8)
+
+
+###############################
+#
+# Type 3 Neutral vs Selection
+# 
+##############################
+
+molten_counts_sum_neutral$model <- "neutral"
+molten_hets_sum_neutral$model <- "neutral"
+
+molten_counts_sum_selection$model <- "selection"
+molten_hets_sum_selection$model <- "selection"
+
+count_models <- rbind.data.frame(molten_counts_sum_selection, molten_counts_sum_neutral)
+
+census_models <- ggplot(count_models, aes(x = age_bin, y = avg, color = model))
+census_models <- census_models + geom_point(shape = 1, size = 2) + theme_bw()
+census_models <- census_models + facet_grid(a~b)
+census_models <- census_models + labs(title = NULL, x = "Age", y = "Count") 
+census_models <- census_models + theme(text = element_text(size = 14), 
+                                              
+                                              axis.text.x = element_blank(),
+                                              axis.title.x = element_text(size = 16),
+                                              axis.title.y = element_text(size = 16))
+ggsave("../census_models.pdf", census_models, device = "pdf", width = 9, height = 9)
+
+
+norm_hets_neutral <- ddply(.data = molten_hets_sum_neutral, .variables = "scenario", mutate, norm_avg = avg / sum(avg, na.rm = T))
+norm_hets_selection <- ddply(.data = molten_hets_sum_selection, .variables = "scenario", mutate, norm_avg = avg / sum(avg, na.rm = T))
+
+het_models_dat <- rbind.data.frame(norm_hets_neutral, norm_hets_selection)
+
+het_models <- ggplot(het_models_dat, aes(x = age_bin, y = norm_avg, color = model))
+het_models <- het_models + geom_point(shape = 1, size = 2) + theme_bw()
+het_models <- het_models + facet_grid(a~b)
+het_models <- het_models + labs(title = NULL, x = "Age", y = "Normalized Het") 
+het_models <- het_models + theme(text = element_text(size = 14), 
+                                 axis.text.x = element_blank(),
+                                 axis.title.x = element_text(size = 16),
+                                 axis.title.y = element_text(size = 16))
+ggsave("../het_models.pdf", het_models, device = "pdf", width = 9, height = 9)
+
+
+
 
 
 
